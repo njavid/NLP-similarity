@@ -44,7 +44,7 @@ const dashboardRoutes = [
   },
   {
     path: "/en",
-    name: "English",
+    name: "English (Coming Soon)",
     icon: "nc-icon nc-chart-pie-35",
     component: SimilarityEn,
     layout: "/similarity"

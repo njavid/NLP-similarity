@@ -5,18 +5,18 @@ services:
       context: ./back
     ports:
       - "8000:8000"
-    volumes:
-      - ./back:/app
+    #volumes:
+    #  - ./back:/app
 
 
   frontend:
     build:
       context: ./dashboard
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
 
 
-volumes:
-  db_data:
+#volumes:
+#  db_data:

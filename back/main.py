@@ -1,75 +1,96 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
-# import numpy as np
+import numpy as np
 # from sklearn.feature_extraction.text import TfidfVectorizer
 # from sklearn.metrics.pairwise import cosine_similarity
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import gdown
 import requests
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 
+import torch
+from sentence_transformers import SentenceTransformer, util
 
 
 app = FastAPI()
 
 # Assume some placeholder data for datasets
-datasets = {
-    "string": ["sentence1", "sentence2", "sentence3"],
-    "dataset2": ["another sentence", "more data here", "last example"],
+datasets_sep = {
+    "wiki": '\t',
+    "tasnim": ','
+}
+datasets_col = {
+    "wiki": 'Sentence',
+    "tasnim": 'abstract'
 }
 
-DATASET_URL = "1uax1CncimQU-_kWvNigBONyplVRdi7PX"  # id of wiki-sections-sentences url
-FILE_PATH = "wiki-sections-sentences.csv"
+models = {
+    "bert-fa-base-uncased-wikitriplet": {
+        "model":"'m3hrdadfi/bert-fa-base-uncased-wikitriplet-mean-tokens",
+        "data":"bert-fa-base-uncased-wikitriplet",
+    },
+    "paraphrase-multilingual-mpnet":{
+        "model":"sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+        "data":"mpnet"
+    }
+}
 
-# Global variables to store the dataset and embeddings
-df = None
-embeddings = None
-model = None
+#download model once and save in local directory:
+# paraphrase_multilingual_mpnet = SentenceTransformer("sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+# paraphrase_multilingual_mpnet.save("resources/mpnet_local_model")
 
-def download_dataset():
-    """Download the dataset if it does not exist."""
-    if not os.path.exists(FILE_PATH):
-        print(f"Dataset not found. Downloading from {DATASET_URL}...")
-        response = gdown.download(id = DATASET_URL,  output= FILE_PATH, quiet=False)
-        print("response : ",response)
-        # if response.status_code == 200:
-        #     with open(FILE_PATH, 'wb') as file:
-        #         file.write(response.content)
-        #     print("Download complete.")
-        # else:
-        #     raise Exception("Failed to download the dataset.")
+# Load the model from the local directory
+paraphrase_multilingual_mpnet = SentenceTransformer("resources/mpnet_local_model")
 
-def load_and_encode_dataset():
-    """Load the dataset and encode sentences."""
-    global df, embeddings, model
 
-    # Load the dataset
-    df = pd.read_csv(FILE_PATH, sep='\t')
-
-    # Ensure the Sentences column exists
-    if 'Sentences' not in df.columns:
-        raise ValueError("The dataset does not contain a 'Sentences' column.")
+def get_similar_sentences(dataset_path,data_emb_path,model_path,query,k,sep,col):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("device = ",device)
 
     # Load the model
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
+    # model = SentenceTransformer(model_path)
+    model = paraphrase_multilingual_mpnet
+    model.to(device)
+    embeddings = np.load(data_emb_path)
+    corpus_embeddings = torch.from_numpy(embeddings).to(device)
+    corpus_embeddings = util.normalize_embeddings(corpus_embeddings)
+    print([query])
+    query_embeddings = model.encode([query])
+    query_embeddings = util.normalize_embeddings(torch.tensor(query_embeddings))
 
-    # Encode all sentences
-    sentences = df['Sentence'].dropna().tolist()
-    embeddings = model.encode(sentences, show_progress_bar=True)
-    print("Sentences have been encoded.")
+    hits = util.semantic_search(query_embeddings, corpus_embeddings,top_k=k)
 
-@app.on_event("startup")
-def startup_event():
-    """Run on startup to prepare the dataset and embeddings."""
-    try:
-        download_dataset()
-        load_and_encode_dataset()
-    except Exception as e:
-        print(f"Error during startup: {e}")
-        raise HTTPException(status_code=500, detail="Failed to prepare the dataset.")
+    df =  pd.read_csv(dataset_path, sep=sep)
+
+    result = []
+
+    # Assuming df has 'corpus_id' as the index or you can access it via a column
+    id = 0
+    for hit in hits[0]:
+        id +=1
+        corpus_id = hit['corpus_id']
+        score = hit['score']
+
+        # Retrieve the sentence using corpus_id from df
+        sentence = df.loc[corpus_id, col]
+        result.append({"id":id,"sentence":sentence,"score":round(score, 2)})
+
+        # Print or store the sentence with the score
+        print(f"Corpus ID: {corpus_id}, Score: {score:.4f}, Sentence: {sentence}")
+
+    return result
+
+
+# @app.on_event("startup")
+# def startup_event():
+#     """Run on startup to prepare the dataset and embeddings."""
+#     try:
+#         download_dataset()
+#         load_embeddings()
+#     except Exception as e:
+#         print(f"Error during startup: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to prepare the dataset.")
 
 
 # Define a request body structure
@@ -93,8 +114,8 @@ app.add_middleware(
 )
 
 
-@app.get("/find-similar-sentences")
-def find_similar_sentences():
+# @app.get("/find-similar-sentences")
+# def find_similar_sentences():
 
 
 
@@ -102,26 +123,26 @@ def find_similar_sentences():
 @app.post("/find-similar-sentences")
 async def find_similar_sentences(request: SimilarityRequest):
     # Check if dataset exists
-    if request.dataset not in datasets:
+    if request.dataset not in datasets_sep:
         raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # if request.model not in models:
+    #     raise HTTPException(status_code=404, detail="Model not found")
 
     print("request:")
     print(request)
 
-    # Retrieve and process sentences
-    sentences = datasets[request.dataset]
-    sentences.append(request)  # Add query sentence for similarity checking
+    # Retrieve model and data:
+    model_names = models['paraphrase-multilingual-mpnet']
+    dataset_name= 'resources/' + request.dataset+'.csv'
+    data_emb_path = 'resources/'+request.dataset+'_'+model_names["data"]+'_embeddings.npy'
+    model_path = model_names["model"]
 
-    # Vectorize sentences and calculate similarity
-    # vectorizer = TfidfVectorizer().fit_transform(sentences)
-    # vectors = vectorizer.toarray()
-    # cosine_sim = cosine_similarity([vectors[-1]], vectors[:-1])[0]  # Skip last item
+    similars = get_similar_sentences(dataset_name,data_emb_path,model_path,request.querySentence,request.kValue,sep=datasets_sep[request.dataset],col=datasets_col[request.dataset])
 
-    # Get top k similar sentences
-    # top_k_indices = cosine_sim.argsort()[-request.k:][::-1]
-    # similar_sentences = [sentences[i] for i in top_k_indices]
 
-    return [
-            {"id":1,"sentence":"sentense1  jsfh f ehf hejfhs jkhf jdshfkhs kfjhsdkh flskdjhf skldh flksjdhf k","score":2.5},
-            {"id":2,"sentence":"sentense2","score":1.2}
-        ]
+    return similars
+        # [
+        #     {"id":1,"sentence":"sentense1  jsfh f ehf hejfhs jkhf jdshfkhs kfjhsdkh flskdjhf skldh flksjdhf k","score":2.5},
+        #     {"id":2,"sentence":"sentense2","score":1.2}
+        # ]

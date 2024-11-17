@@ -29,7 +29,7 @@ const SimilarityForm = () => {
     console.log("hello0");
     
     // Simulate posting data (replace with actual API call)
-    const response = await fetch('http://127.0.0.1:8003/find-similar-sentences', {
+    const response = await fetch('http://127.0.0.1:8000/find-similar-sentences', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dataset, querySentence, kValue }),
@@ -67,6 +67,23 @@ const SimilarityForm = () => {
               <Card.Body>
             <Form onSubmit={handleSubmit}>
       <FormGroup row>
+        <Form.Label for="model" sm={8}>Dataset</Form.Label><br></br>
+        {/* <Col sm={10}> */}
+          <Form.Select
+            type="select"
+            name="model"
+            id="model"
+            // value={dataset}
+            onChange={(e) => setDataset(e.target.value)}
+          >
+            <option value="">Select a dataset</option>
+            <option value="model1">model 1</option>
+            <option value="model2">model 2</option>
+          </Form.Select>
+        {/* </Col> */}
+      </FormGroup>
+      <FormGroup row><br></br>
+      <FormGroup row>
         <Form.Label for="dataset" sm={8}>Dataset</Form.Label><br></br>
         {/* <Col sm={10}> */}
           <Form.Select
@@ -82,7 +99,6 @@ const SimilarityForm = () => {
           </Form.Select>
         {/* </Col> */}
       </FormGroup>
-      <FormGroup row><br></br>
       <Form.Label for="querySentence" sm={2}>Query Sentence</Form.Label><br></br>
         {/* <Col sm={10}> */}
           <Form.Control type="text" placeholder="Enter sentence"

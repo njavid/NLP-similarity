@@ -19,12 +19,40 @@ import {
 } from "react-bootstrap";
 
 const SimilarityForm = () => {
+  const sentenceList = [
+    "دومین برد پیاپی ایران در جام جهانی فوتبال هفت نفره اتفاق افتاد",
+    "نان و عسل و پنیر صبحانه کاملی به حساب می‌آید"
+  ];
+  
+  const [suggestions, setSuggestions] = useState(sentenceList);
+  const [loading, setLoading] = useState(false);
   const [dataset, setDataset] = useState('');
   const [querySentence, setQuerySentence] = useState('');
   const [kValue, setKValue] = useState(1);
   const [resultData, setResult] = useState(null);
   const [alert, setAlert] = useState({ show: false, message: '', variant: '' });
   const notificationAlertRef = React.useRef(null);
+
+   
+  const handleInputChange = (e) => {
+    const input = e.target.value;
+    setQuerySentence(input);
+
+    // Filter the sentence list to show suggestions based on input
+    if (input) {
+      const filteredSuggestions = sentenceList.filter((sentence) =>
+        sentence.toLowerCase().includes(input.toLowerCase())
+      );
+      setSuggestions(filteredSuggestions);
+    } else {
+      setSuggestions(sentenceList);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    setQuerySentence(suggestion);
+    setSuggestions([]); // Clear suggestions after selection
+  };
 
   const notify = (place) => {
     var type = "danger";
@@ -48,10 +76,12 @@ const SimilarityForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    setLoading(true);
+
     console.log("hello0");
     
     // Simulate posting data (replace with actual API call)
-    const response = await fetch('http://127.0.0.1:8003/find-similar-sentences', {
+    const response = await fetch('http://127.0.0.1:8000/find-similar-sentences', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dataset, querySentence, kValue }),
@@ -74,6 +104,7 @@ const SimilarityForm = () => {
       // Optionally clear any previous alerts
       setAlert({ show: false, message: '', variant: '' });
     }
+    setLoading(false);
     
   };
 
@@ -96,7 +127,7 @@ const SimilarityForm = () => {
       </div>
       <Container fluid>
         <Row>
-          <Col md="6">
+          <Col md="4">
           <Card className="card-stats">
               <Card.Header>
                 <Card.Title as="h4">Set Up Query</Card.Title>
@@ -116,8 +147,8 @@ const SimilarityForm = () => {
             onChange={(e) => setDataset(e.target.value)}
           >
             <option value="">Select a dataset</option>
-            <option value="dataset1">Dataset 1</option>
-            <option value="dataset2">Dataset 2</option>
+            <option value="wiki">wiki</option>
+            <option value="tasnim">tasnim</option>
           </Form.Select>
         {/* </Col> */}
       </FormGroup>
@@ -127,10 +158,26 @@ const SimilarityForm = () => {
           <Form.Control type="text" placeholder="Enter sentence"
             name="querySentence"
             id="querySentence"
+            value={querySentence}
+            onChange={handleInputChange}
             // value={querySentence}
-            onChange={(e) => setQuerySentence(e.target.value)}
+            // onChange={(e) => setQuerySentence(e.target.value)}
           />
         {/* </Col> */}
+         {/* Display suggestions */}
+      {suggestions.length > 0 && (
+        <ul style={{ border: '1px solid #ccc', marginTop: '5px', padding: '5px', listStyleType: 'none', direction: 'rtl', fontSize: '10px'  }}>
+          {suggestions.map((suggestion, index) => (
+            <li
+              key={index}
+              onClick={() => handleSuggestionClick(suggestion)}
+              style={{ cursor: 'pointer', padding: '5px' }}
+            >
+              {suggestion}
+            </li>
+          ))}
+        </ul>
+      )}
       </FormGroup>
       <FormGroup row><br></br>
         <Form.Label for="kValue" sm={2}>K Value</Form.Label><br></br>
@@ -146,13 +193,13 @@ const SimilarityForm = () => {
         {/* </Col> */}
       </FormGroup> <br></br>
       <div className="text-center">
-      <Button className="my-3" type="submit" color="primary">Submit</Button> 
+      <Button className="my-3" type="submit" color="primary" disabled={loading}>Submit</Button> 
       </div>
     </Form>
     </Card.Body>
     </Card>
           </Col>
-          <Col md="6">
+          <Col md="8">
            {/* Show alert if needed */}
            {/* {alert.show && (
                 <Alert variant="danger">
@@ -172,7 +219,7 @@ const SimilarityForm = () => {
               )} */}
           <Card className="card-stats">
               <Card.Header>
-                <Card.Title as="h4">Similar Sentenses</Card.Title>
+                <Card.Title as="h4" className="text-center">Similar Sentenses</Card.Title>
                 {/* <p className="card-category">set query parameters & configuration </p> */}
               </Card.Header>
               {/* <hr></hr> */}
@@ -182,20 +229,20 @@ const SimilarityForm = () => {
                     <tbody>
                     <tr key={0}>
                         <td>
-                        <strong>Sentence</strong>  
+                        <strong>Score</strong>  
                         </td>
-                        <td>
-                        <strong>Score</strong> 
+                        <td className="text-center">
+                        <strong>Sentence</strong> 
                         </td>
                       </tr>  
                   {resultData.map(({ id, sentence, score }) => (
                 
                       <tr key={id}>
                         <td>
-                         {sentence}  
+                         {score}  
                         </td>
-                        <td className="text-center">
-                        {score}
+                        <td className="text-center" dir="rtl">
+                        {sentence}
                         </td>
                       </tr>  
                    

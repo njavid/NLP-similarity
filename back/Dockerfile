@@ -10,7 +10,10 @@ COPY requirements.txt .
 # Install dependencies
 #RUN pip install --upgrade --require-hashes -r requirements.txt --no-deps
 #RUN pip install --no-cache-dir  -r requirements.txt
-RUN pip install --no-cache-dir --timeout=1000 -r requirements.txt
+
+RUN pip install --timeout=1000 -r requirements.txt
+# RUN pip install --no-cache-dir --timeout=1000 -r requirements.txt
+
 #RUN pip install --upgrade --require-hashes -r requirements.txt --no-deps
 
 # Copy the rest of the application code
