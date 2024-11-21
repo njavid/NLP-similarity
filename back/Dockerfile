@@ -1,22 +1,18 @@
 # Use an official Python runtime as a parent image
 FROM python:3.12.5
 
+LABEL maintainer="Javid" \
+      project="NLP Similarity" \
+      tool="FastAPI"
+
 # Set the working directory in the container
 WORKDIR /app
 
 # Copy the requirements file into the container
 COPY requirements.txt .
 
-# Install dependencies
-#RUN pip install --upgrade --require-hashes -r requirements.txt --no-deps
-#RUN pip install --no-cache-dir  -r requirements.txt
-
 RUN pip install --timeout=1000 -r requirements.txt
-# RUN pip install --no-cache-dir --timeout=1000 -r requirements.txt
 
-#RUN pip install --upgrade --require-hashes -r requirements.txt --no-deps
-
-# Copy the rest of the application code
 COPY . .
 
 # Expose the port FastAPI runs on
