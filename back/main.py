@@ -11,6 +11,7 @@ import pandas as pd
 
 import torch
 from sentence_transformers import SentenceTransformer, util
+import gdown
 
 
 app = FastAPI()
@@ -41,15 +42,14 @@ models = {
 # paraphrase_multilingual_mpnet.save("resources/mpnet_local_model")
 
 # Load the model from the local directory
-paraphrase_multilingual_mpnet = SentenceTransformer("resources/mpnet_local_model")
+global paraphrase_multilingual_mpnet
 
 
 def get_similar_sentences(dataset_path,data_emb_path,model_path,query,k,sep,col):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device = ",device)
 
-    # Load the model
-    # model = SentenceTransformer(model_path)
+    # Load the models and dataset:
     model = paraphrase_multilingual_mpnet
     model.to(device)
     embeddings = np.load(data_emb_path)
@@ -61,8 +61,8 @@ def get_similar_sentences(dataset_path,data_emb_path,model_path,query,k,sep,col)
 
     hits = util.semantic_search(query_embeddings, corpus_embeddings,top_k=k)
 
-    df =  pd.read_csv(dataset_path, sep=sep)
 
+    df =  pd.read_csv(dataset_path, sep=sep)
     result = []
 
     # Assuming df has 'corpus_id' as the index or you can access it via a column
@@ -82,15 +82,33 @@ def get_similar_sentences(dataset_path,data_emb_path,model_path,query,k,sep,col)
     return result
 
 
-# @app.on_event("startup")
-# def startup_event():
-#     """Run on startup to prepare the dataset and embeddings."""
-#     try:
-#         download_dataset()
-#         load_embeddings()
-#     except Exception as e:
-#         print(f"Error during startup: {e}")
-#         raise HTTPException(status_code=500, detail="Failed to prepare the dataset.")
+@app.on_event("startup")
+def startup_event():
+    global paraphrase_multilingual_mpnet
+    """Run on startup to prepare the dataset and embeddings."""
+    if not os.path.exists('resources'):
+        os.makedirs('resources')
+        print(f"Created folder: resources")
+
+    # Check if the model is already downloaded
+    model_path = os.path.join('resources', "mpnet_local_model")
+    if not os.path.exists(model_path):
+        print("Downloading and saving the model...")
+        model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+        model.save(model_path)
+        paraphrase_multilingual_mpnet = SentenceTransformer("resources/mpnet_local_model")
+
+        gdown.download(id="1uax1CncimQU-_kWvNigBONyplVRdi7PX" , output = 'resources/wiki.csv', quiet = False)
+        gdown.download(id="1-9iPfsr8WdWbBouvcrd0mveEdfgUqyoc", output='resources/wiki_mpnet_embeddings.npy', quiet=False)
+        gdown.download(id="1kDl1AGa5ngrsV7DIklgQMmZ03Fj5iykG", output='resources/tasnim.csv', quiet=False)
+        gdown.download(id="1YS-TPIppsU_nY6E3Rja-uuqqj8Ncq3pt", output='resources/tasnim_mpnet_embeddings.npy', quiet=False)
+
+        print(f"Model and data saves successfully!")
+    else:
+        print("Model already exists.")
+
+
+
 
 
 # Define a request body structure
@@ -119,15 +137,11 @@ app.add_middleware(
 
 
 
-# Route for retrieving similar sentences
 @app.post("/find-similar-sentences")
 async def find_similar_sentences(request: SimilarityRequest):
     # Check if dataset exists
     if request.dataset not in datasets_sep:
         raise HTTPException(status_code=404, detail="Dataset not found")
-
-    # if request.model not in models:
-    #     raise HTTPException(status_code=404, detail="Model not found")
 
     print("request:")
     print(request)
@@ -138,10 +152,16 @@ async def find_similar_sentences(request: SimilarityRequest):
     data_emb_path = 'resources/'+request.dataset+'_'+model_names["data"]+'_embeddings.npy'
     model_path = model_names["model"]
 
-    similars = get_similar_sentences(dataset_name,data_emb_path,model_path,request.querySentence,request.kValue,sep=datasets_sep[request.dataset],col=datasets_col[request.dataset])
-
-
+    similars = get_similar_sentences(dataset_name,data_emb_path,model_path,
+                                     request.querySentence,request.kValue,
+                                     sep=datasets_sep[request.dataset],
+                                     col=datasets_col[request.dataset])
     return similars
+
+
+
+
+
         # [
         #     {"id":1,"sentence":"sentense1  jsfh f ehf hejfhs jkhf jdshfkhs kfjhsdkh flskdjhf skldh flksjdhf k","score":2.5},
         #     {"id":2,"sentence":"sentense2","score":1.2}
