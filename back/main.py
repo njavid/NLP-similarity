@@ -118,14 +118,14 @@ class SimilarityRequest(BaseModel):
     kValue: int
 
 origins = [
-    "http://localhost:3000",  # Allow requests from this frontend
+    "*",  # Allow requests from this frontend
     # "https://your-frontend-domain.com",  # Add other domains as needed
 ]
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Allows requests from specified origins
+    allow_origins=["*"],  # Allows requests from specified origins
     allow_credentials=True,
     allow_methods=["*"],  # Allows all HTTP methods (GET, POST, etc.)
     allow_headers=["*"],  # Allows all headers
