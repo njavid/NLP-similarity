@@ -20,19 +20,36 @@ import {
 
 const SimilarityForm = () => {
   const sentenceList = [
+    "غروب آفتاب در کویر چشم‌اندازی بی‌نظیر ارائه می‌دهد.",
     "دومین برد پیاپی ایران در جام جهانی فوتبال هفت نفره اتفاق افتاد",
     "نان و عسل و پنیر صبحانه کاملی به حساب می‌آید"
   ];
-  
+  const [stringsArray, setStringsArray] = useState([]); // Array of strings
+  const [currentString, setCurrentString] = useState(""); // Input for new string
+
   const [suggestions, setSuggestions] = useState(sentenceList);
   const [loading, setLoading] = useState(false);
   const [dataset, setDataset] = useState('');
   const [querySentence, setQuerySentence] = useState('');
   const [kValue, setKValue] = useState(1);
+  const [model, setmodel] = useState(1);
   const [resultData, setResult] = useState(null);
   const [alert, setAlert] = useState({ show: false, message: '', variant: '' });
   const notificationAlertRef = React.useRef(null);
 
+  // Add string to the array
+  const addString = () => {
+    if (currentString.trim() !== "") {
+      setStringsArray([...stringsArray, currentString.trim()]);
+      setCurrentString(""); // Clear input
+    }
+  };
+
+  // Remove string from the array
+  const removeString = (index) => {
+    const updatedArray = stringsArray.filter((_, i) => i !== index);
+    setStringsArray(updatedArray);
+  };
    
   const handleInputChange = (e) => {
     const input = e.target.value;
@@ -81,10 +98,10 @@ const SimilarityForm = () => {
     console.log("hello0");
     
     // Simulate posting data (replace with actual API call)
-    const response = await fetch('http://127.0.0.1:8000/find-similar-sentences', {
+    const response = await fetch('http://127.0.0.1:8083/find-similar-sentences', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dataset, querySentence, kValue }),
+      body: JSON.stringify({ stringsArray, querySentence, kValue, }),
     });
     const resultData = await response.json();
     console.log("hiiiiii2");
@@ -136,22 +153,45 @@ const SimilarityForm = () => {
               <hr></hr>
               <Card.Body>
             <Form onSubmit={handleSubmit}>
-      <FormGroup row>
-        <Form.Label for="dataset" sm={8}>Dataset</Form.Label><br></br>
-        {/* <Col sm={10}> */}
-          <Form.Select
-            type="select"
-            name="dataset"
-            id="dataset"
-            // value={dataset}
-            onChange={(e) => setDataset(e.target.value)}
-          >
-            <option value="">Select a dataset</option>
-            <option value="wiki">wiki</option>
-            <option value="tasnim">tasnim</option>
-          </Form.Select>
-        {/* </Col> */}
-      </FormGroup>
+
+      {/* <FormGroup row>
+        <Form.Label for="data" sm={10}>Sentences (As list of texts):</Form.Label><br></br>
+        
+          <Form.Control type="text" placeholder="Enter sentences as json"
+            name="data"
+            id="data"
+            // value={querySentence}
+            // onChange={handleInputChange}
+            // value={querySentence}
+            // onChange={(e) => setQuerySentence(e.target.value)}
+          />
+      </FormGroup> */}
+      <div>
+      <label>
+          Add String:
+          <input
+            type="text"
+            value={currentString}
+            onChange={(e) => setCurrentString(e.target.value)}
+          />
+        </label>
+        <button type="button" onClick={addString}>
+          Add
+        </button>
+      </div>
+
+      <ul>
+        {stringsArray.map((string, index) => (
+          <li key={index}>
+            {string}{" "}
+            <button type="button" onClick={() => removeString(index)}>
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+
+
       <FormGroup row><br></br>
       <Form.Label for="querySentence" sm={2}>Query Sentence</Form.Label><br></br>
         {/* <Col sm={10}> */}
@@ -190,6 +230,17 @@ const SimilarityForm = () => {
             // value={kValue}
             onChange={(e) => setKValue(Number(e.target.value))}
           />
+        {/* </Col> */}
+      </FormGroup> <br></br>
+      <FormGroup row><br></br>
+        <Form.Label for="model" sm={2}> select model </Form.Label><br></br>
+        
+        <Form.Select aria-label="Default select example" onChange={(e) => setmodel(e.target.value)}>
+          <option value="0">All models</option>
+          <option value="1">paraphrase_multilingual_mpnet</option>
+          <option value="2">paraphrase_multilingual_MiniLM</option>
+          <option value="3">bert_fa_base_uncased_wikitriplet</option>
+        </Form.Select>
         {/* </Col> */}
       </FormGroup> <br></br>
       <div className="text-center">
